@@ -5,6 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jerome Institute of Technology - Student Enrollment</title>
     <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+
+    <script>
+      // Firebase Configuration
+      // ⚠️ IMPORTANT: Replace these values with your actual Firebase project credentials
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "your-project.firebaseapp.com",
+        databaseURL: "https://your-project.firebaseio.com",
+        projectId: "your-project-id",
+        storageBucket: "your-project.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+      };
+
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      
+      // Get reference to Realtime Database
+      const database = firebase.database();
+    </script>
 </head>
 <body>
     <!-- Navigation -->

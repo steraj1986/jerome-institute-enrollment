@@ -2,13 +2,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('enrollmentForm');
     const successMessage = document.getElementById('successMessage');
 
+    // Log to confirm form is found
+    console.log('Form found:', form);
+
+    if (!form) {
+        console.error('Form with id "enrollmentForm" not found!');
+        return;
+    }
+
     form.addEventListener('submit', function(e) {
+        console.log('Form submit event triggered');
         e.preventDefault();
 
         // Validate form
         if (!validateForm()) {
+            console.warn('Form validation failed');
             return;
         }
+
+        console.log('Form validation passed');
 
         // Collect form data
         const formData = new FormData(form);
@@ -31,6 +43,8 @@ document.addEventListener('DOMContentLoaded', function() {
             submittedAt: new Date().toISOString()
         };
 
+        console.log('Collected form data:', data);
+
         // Save to Firebase
         saveEnrollmentToFirebase(data);
 
@@ -52,11 +66,21 @@ document.addEventListener('DOMContentLoaded', function() {
                               'degree', 'enrollment', 'essay', 'terms'];
         
         let isValid = true;
+        let errorFields = [];
 
         requiredFields.forEach(field => {
             const element = document.getElementById(field);
-            if (!element.value.trim()) {
+            
+            if (!element) {
+                console.warn(`Field with id "${field}" not found in HTML`);
+                return;
+            }
+
+            const value = element.type === 'checkbox' ? element.checked : element.value.trim();
+
+            if (!value) {
                 element.classList.add('error');
+                errorFields.push(field);
                 isValid = false;
             } else {
                 element.classList.remove('error');
@@ -65,11 +89,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Validate email format
         const email = document.getElementById('email');
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email.value)) {
-            email.classList.add('error');
-            alert('Please enter a valid email address');
-            isValid = false;
+        if (email && email.value) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email.value)) {
+                email.classList.add('error');
+                alert('Please enter a valid email address');
+                isValid = false;
+            }
+        }
+
+        if (errorFields.length > 0) {
+            console.warn('Validation errors in fields:', errorFields);
         }
 
         return isValid;
@@ -77,73 +107,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * Save enrollment data to Firebase Realtime Database
-     * Data is stored under 'enrollments' with unique timestamps as keys
      */
     function saveEnrollmentToFirebase(data) {
+        console.log('Attempting to save to Firebase...');
+        
         // Check if Firebase is initialized
         if (typeof firebase === 'undefined') {
-            console.error('Firebase is not initialized. Please check your Firebase configuration.');
-            alert('Error: Firebase is not properly configured. Please contact support.');
+            console.error('Firebase is not initialized');
+            alert('Error: Firebase not initialized. Saving locally only.');
+            saveEnrollmentToLocalStorage(data);
             return;
         }
 
-        // Get database reference
-        const database = firebase.database();
-        
-        // Create a unique key based on email and timestamp
-        const enrollmentKey = data.email + '_' + Date.now();
-        
-        // Save to Firebase under 'enrollments' node
-        database.ref('enrollments/' + enrollmentKey).set(data)
-            .then(() => {
-                console.log('✓ Enrollment successfully saved to Firebase:', data);
-                
-                // Also save to localStorage as backup
-                saveEnrollmentToLocalStorage(data);
-            })
-            .catch((error) => {
-                console.error('✗ Error saving to Firebase:', error);
-                alert('Error saving enrollment. Data has been saved locally. Please try again later.');
-                
-                // Save to localStorage as fallback
-                saveEnrollmentToLocalStorage(data);
-            });
+        try {
+            const database = firebase.database();
+            const enrollmentKey = data.email + '_' + Date.now();
+            
+            console.log('Saving to Firebase with key:', enrollmentKey);
+
+            database.ref('enrollments/' + enrollmentKey).set(data)
+                .then(() => {
+                    console.log('✓ Successfully saved to Firebase');
+                    saveEnrollmentToLocalStorage(data);
+                })
+                .catch((error) => {
+                    console.error('Firebase error:', error);
+                    alert('Data saved locally (Firebase connection failed)');
+                    saveEnrollmentToLocalStorage(data);
+                });
+        } catch (error) {
+            console.error('Error in saveEnrollmentToFirebase:', error);
+            saveEnrollmentToLocalStorage(data);
+        }
     }
 
     /**
-     * Backup: Save enrollment to localStorage
+     * Save enrollment to localStorage as backup
      */
     function saveEnrollmentToLocalStorage(data) {
         try {
             let enrollments = JSON.parse(localStorage.getItem('enrollments')) || [];
             enrollments.push(data);
             localStorage.setItem('enrollments', JSON.stringify(enrollments));
-            console.log('✓ Enrollment also saved to localStorage as backup');
+            console.log('✓ Saved to localStorage. Total enrollments:', enrollments.length);
         } catch (error) {
             console.error('Error saving to localStorage:', error);
         }
     }
-
-    /**
-     * Optional: Load and display all enrollments from Firebase
-     * Uncomment to use this feature
-     */
-    /*
-    function loadEnrollmentsFromFirebase() {
-        const database = firebase.database();
-        
-        database.ref('enrollments').on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                console.log('All Enrollments:', data);
-                // You can update your UI here with the enrollments
-            } else {
-                console.log('No enrollments found');
-            }
-        });
-    }
-
-    // Call this function if you want to load enrollments on page load
-    // loadEnrollmentsFromFirebase();
-    */
 });

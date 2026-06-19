@@ -3,24 +3,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const successMessage = document.getElementById('successMessage');
 
     // Log to confirm form is found
+    console.log('✓ Form script loaded');
     console.log('Form found:', form);
 
     if (!form) {
-        console.error('Form with id "enrollmentForm" not found!');
+        console.error('❌ Form with id "enrollmentForm" not found!');
         return;
     }
 
     form.addEventListener('submit', function(e) {
-        console.log('Form submit event triggered');
+        console.log('✓ Form submit event triggered');
         e.preventDefault();
 
         // Validate form
-        if (!validateForm()) {
-            console.warn('Form validation failed');
+        const isValid = validateForm();
+        console.log('Form validation result:', isValid);
+        
+        if (!isValid) {
+            console.warn('❌ Form validation failed - check console for errors');
+            alert('Please fill in all required fields correctly');
             return;
         }
 
-        console.log('Form validation passed');
+        console.log('✓ Form validation passed');
 
         // Collect form data
         const formData = new FormData(form);
@@ -43,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submittedAt: new Date().toISOString()
         };
 
-        console.log('Collected form data:', data);
+        console.log('✓ Collected form data:', data);
 
         // Save to Firebase
         saveEnrollmentToFirebase(data);
@@ -61,29 +66,50 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function validateForm() {
-        const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'dob', 
-                              'address', 'city', 'state', 'zip', 'program', 
-                              'degree', 'enrollment', 'essay', 'terms'];
+        const requiredFields = [
+            { id: 'firstName', type: 'text' },
+            { id: 'lastName', type: 'text' },
+            { id: 'email', type: 'email' },
+            { id: 'phone', type: 'tel' },
+            { id: 'dob', type: 'date' },
+            { id: 'address', type: 'text' },
+            { id: 'city', type: 'text' },
+            { id: 'state', type: 'text' },
+            { id: 'zip', type: 'text' },
+            { id: 'program', type: 'select' },
+            { id: 'degree', type: 'select' },
+            { id: 'enrollment', type: 'select' },
+            { id: 'essay', type: 'textarea' },
+            { id: 'terms', type: 'checkbox' }
+        ];
         
         let isValid = true;
-        let errorFields = [];
+        const errorFields = [];
 
         requiredFields.forEach(field => {
-            const element = document.getElementById(field);
+            const element = document.getElementById(field.id);
             
             if (!element) {
-                console.warn(`Field with id "${field}" not found in HTML`);
+                console.warn(`⚠️ Field with id "${field.id}" not found in HTML`);
+                errorFields.push(field.id);
                 return;
             }
 
-            const value = element.type === 'checkbox' ? element.checked : element.value.trim();
+            let value;
+            if (field.type === 'checkbox') {
+                value = element.checked;
+            } else {
+                value = element.value ? element.value.trim() : '';
+            }
 
             if (!value) {
                 element.classList.add('error');
-                errorFields.push(field);
+                console.warn(`⚠️ Empty field: ${field.id}`);
+                errorFields.push(field.id);
                 isValid = false;
             } else {
                 element.classList.remove('error');
+                console.log(`✓ Valid field: ${field.id} = ${value.substring(0, 20)}`);
             }
         });
 
@@ -93,13 +119,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email.value)) {
                 email.classList.add('error');
-                alert('Please enter a valid email address');
+                console.error(`❌ Invalid email format: ${email.value}`);
                 isValid = false;
             }
         }
 
         if (errorFields.length > 0) {
-            console.warn('Validation errors in fields:', errorFields);
+            console.warn('❌ Validation errors in fields:', errorFields);
+            alert(`Please fill in these fields: ${errorFields.join(', ')}`);
         }
 
         return isValid;
@@ -109,12 +136,12 @@ document.addEventListener('DOMContentLoaded', function() {
      * Save enrollment data to Firebase Realtime Database
      */
     function saveEnrollmentToFirebase(data) {
-        console.log('Attempting to save to Firebase...');
+        console.log('🔄 Attempting to save to Firebase...');
         
         // Check if Firebase is initialized
         if (typeof firebase === 'undefined') {
-            console.error('Firebase is not initialized');
-            alert('Error: Firebase not initialized. Saving locally only.');
+            console.error('❌ Firebase is not initialized');
+            alert('Firebase not available. Saving locally.');
             saveEnrollmentToLocalStorage(data);
             return;
         }
@@ -127,16 +154,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             database.ref('enrollments/' + enrollmentKey).set(data)
                 .then(() => {
-                    console.log('✓ Successfully saved to Firebase');
+                    console.log('✅ Successfully saved to Firebase');
                     saveEnrollmentToLocalStorage(data);
                 })
                 .catch((error) => {
-                    console.error('Firebase error:', error);
-                    alert('Data saved locally (Firebase connection failed)');
+                    console.error('❌ Firebase error:', error);
+                    console.warn('Falling back to localStorage');
                     saveEnrollmentToLocalStorage(data);
                 });
         } catch (error) {
-            console.error('Error in saveEnrollmentToFirebase:', error);
+            console.error('❌ Error in saveEnrollmentToFirebase:', error);
             saveEnrollmentToLocalStorage(data);
         }
     }
@@ -149,9 +176,9 @@ document.addEventListener('DOMContentLoaded', function() {
             let enrollments = JSON.parse(localStorage.getItem('enrollments')) || [];
             enrollments.push(data);
             localStorage.setItem('enrollments', JSON.stringify(enrollments));
-            console.log('✓ Saved to localStorage. Total enrollments:', enrollments.length);
+            console.log('✅ Saved to localStorage. Total enrollments:', enrollments.length);
         } catch (error) {
-            console.error('Error saving to localStorage:', error);
+            console.error('❌ Error saving to localStorage:', error);
         }
     }
 });
